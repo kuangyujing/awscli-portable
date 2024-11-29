@@ -1,5 +1,9 @@
 ![awscli](assets/logo.png)
 
+## TL;DR
+
+You can download pre-built single binary at `downloads` directory or [release](https://github.com/kuangyujing/awscli-portable/releases). It runs on Apple Silicon Macs.
+
 ## Build Instruction
 
 Install Homebrew
