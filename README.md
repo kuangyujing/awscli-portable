@@ -2,9 +2,11 @@
 
 ## TL;DR
 
-You can download pre-built single binary at `downloads` directory or [release](https://github.com/kuangyujing/awscli-portable/releases). It runs on Apple Silicon Macs.
+You can download pre-built portable binary at `downloads` directory or [release](https://github.com/kuangyujing/awscli-portable/releases). It runs on Apple Silicon Macs.
 
-[The latest version](https://github.com/kuangyujing/awscli-portable/releases/download/2.22.7/awscli-portable-2.22.7.zip) .
+[The latest version](https://github.com/kuangyujing/awscli-portable/releases/download/2.22.7/awscli-portable-2.22.7.zip).
+
+Extract and put this archive to `/usr/local`, then symbolic link `aws` and `aws_completer` to `/usr/local/bin`.
 
 ## Build Instruction
 
@@ -83,4 +85,4 @@ If success, you can see these logs:
 
 Now, point to `build/exe/aws/dist`.
 
-Congraturations! `aws` and `aws_completer` is the executable single binaries.
+Congraturations! `aws` and `aws_completer` is the executable portable binaries.
