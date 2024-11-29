@@ -51,10 +51,13 @@ If `make` exit with errors like this:
 > ERROR: Could not find a version that satisfies the requirement pyinstaller==5.13.2 (from versions: 2.0, 2.1, 3.0, 3.1, 3.1.1, 3.2, 3.2.1, 3.3, 3.3.1, 3.4, 3.5, 3.6, 4.0, 4.1, 4.2, 4.3, 4.4, 4.5, 4.5.1, 6.10.0, 6.11.0, 6.11.1)
 > ERROR: No matching distribution found for pyinstaller==5.13.2
 
-De-grade python to 3.11
+De-grade python to 3.9
 
 ```sh
 brew install python@3.9
+```
+
+And force Homebrew use 3.9
 
 brew unlink python@3.12
 brew unlink python@3.13
