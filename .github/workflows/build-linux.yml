@@ -1,0 +1,62 @@
+name: Build Linux Portable AWSCLI
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  build-linux:
+    name: build-linux
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Download awscli source
+        id: download_awscli
+        run: |
+          TEMP_DIR=$(mktemp -d)
+          curl -L https://awscli.amazonaws.com/awscli.tar.gz -o $TEMP_DIR/awscli.tar.gz
+          echo "TEMP_DIR=$TEMP_DIR" >> $GITHUB_ENV
+          echo "Tarball downloaded to $TEMP_DIR/awscli.tar.gz"
+
+      - name: Extract awscli source
+        id: extract_awscli
+        run: |
+          mkdir -p ${{ env.TEMP_DIR }}/awscli-source
+          tar xzf ${{ env.TEMP_DIR }}/awscli.tar.gz -C ${{ env.TEMP_DIR }}/awscli-source
+          # Assuming the tarball extracts into a single top-level directory.
+          EXTRACTED_DIR_NAME=$(ls ${{ env.TEMP_DIR }}/awscli-source | head -n 1)
+          echo "EXTRACTED_DIR_PATH=${{ env.TEMP_DIR }}/awscli-source/$EXTRACTED_DIR_NAME" >> $GITHUB_ENV
+          echo "Extracted to ${{ env.EXTRACTED_DIR_PATH }}"
+
+      - name: Install build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential autoconf automake libtool python3.9 python3.9-dev python3.9-venv
+
+      - name: Set up Python 3.9
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.9'
+
+      # Steps from here onwards should be run inside the extracted directory
+      - name: Configure build
+        working-directory: ${{ env.EXTRACTED_DIR_PATH }}
+        run: ./configure --with-install-type=portable-exe --with-download-deps
+
+      - name: Run make
+        working-directory: ${{ env.EXTRACTED_DIR_PATH }}
+        run: make
+
+      - name: Upload awscli binaries
+        uses: actions/upload-artifact@v3
+        with:
+          name: awscli-linux
+          path: |
+            ${{ env.EXTRACTED_DIR_PATH }}/build/exe/aws/dist/aws
+            ${{ env.EXTRACTED_DIR_PATH }}/build/exe/aws/dist/aws_completer
+          if-no-files-found: error # Ensures the build actually produced the files

@@ -1,0 +1,68 @@
+name: Build macOS Portable AWSCLI
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  build-macos:
+    name: build-macos
+    runs-on: macos-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Set up Homebrew (placeholder)
+        run: echo "Homebrew is usually pre-installed on macos-latest runners."
+
+      - name: Download awscli source
+        id: download_awscli
+        run: |
+          TEMP_DIR=$(mktemp -d)
+          curl -L https://awscli.amazonaws.com/awscli.tar.gz -o $TEMP_DIR/awscli.tar.gz
+          echo "TEMP_DIR=$TEMP_DIR" >> $GITHUB_ENV
+          echo "Tarball downloaded to $TEMP_DIR/awscli.tar.gz"
+
+      - name: Extract awscli source
+        id: extract_awscli
+        run: |
+          mkdir -p ${{ env.TEMP_DIR }}/awscli-source
+          tar xzf ${{ env.TEMP_DIR }}/awscli.tar.gz -C ${{ env.TEMP_DIR }}/awscli-source
+          # Assuming the tarball extracts into a single top-level directory.
+          # The problem statement mentions 'awscli-bundle' or 'awscli-<version>'.
+          # We'll need to find the actual directory name.
+          EXTRACTED_DIR_NAME=$(ls ${{ env.TEMP_DIR }}/awscli-source | head -n 1)
+          echo "EXTRACTED_DIR_PATH=${{ env.TEMP_DIR }}/awscli-source/$EXTRACTED_DIR_NAME" >> $GITHUB_ENV
+          echo "Extracted to ${{ env.TEMP_DIR }}/awscli-source/$EXTRACTED_DIR_NAME"
+
+      - name: Install build dependencies
+        run: brew install autoconf automake libtool make
+
+      - name: Set up Python 3.9
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.9'
+
+      - name: Add Homebrew libtool to PATH
+        run: echo "$(brew --prefix)/opt/libtool/libexec/gnubin" >> $GITHUB_PATH
+
+      # Steps from here onwards should be run inside the extracted directory
+      - name: Configure build
+        working-directory: ${{ env.EXTRACTED_DIR_PATH }}
+        run: ./configure --with-install-type=portable-exe --with-download-deps
+
+      - name: Run make
+        working-directory: ${{ env.EXTRACTED_DIR_PATH }}
+        run: make
+
+      - name: Upload awscli binaries
+        uses: actions/upload-artifact@v3
+        with:
+          name: awscli-macos
+          path: |
+            ${{ env.EXTRACTED_DIR_PATH }}/build/exe/aws/dist/aws
+            ${{ env.EXTRACTED_DIR_PATH }}/build/exe/aws/dist/aws_completer
+          if-no-files-found: error # Ensures the build actually produced the files

@@ -1,0 +1,87 @@
+name: Build Windows Portable AWSCLI
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  build-windows:
+    name: build-windows
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Set up MSYS2
+        uses: msys2/setup-msys2@v2
+        with:
+          msystem: MINGW64
+          update: true
+          install: >-
+            git
+            tar
+            curl
+            unzip
+            # Core MSYS2/MinGW dependencies for building will be installed via pacman using msys2do
+
+      - name: Download awscli source
+        # msys2do executes the command within an MSYS2 shell.
+        # Default working directory for msys2do is GITHUB_WORKSPACE.
+        run: msys2do curl -LO https://awscli.amazonaws.com/awscli.tar.gz
+        # This downloads awscli.tar.gz to GITHUB_WORKSPACE
+
+      - name: Extract awscli source and get directory name
+        id: extract_step
+        # This script runs in the default shell (PowerShell)
+        run: |
+          msys2do tar xzf awscli.tar.gz
+          # Determine the extracted directory name using PowerShell commands
+          $extractedDir = Get-ChildItem -Directory -Filter "awscli-bundle*" | Select-Object -First 1 -ExpandProperty Name
+          if (-not $extractedDir) {
+            # Fallback if 'awscli-bundle*' is not found
+            $extractedDir = Get-ChildItem -Directory -Filter "awscli-*" | Select-Object -First 1 -ExpandProperty Name
+          }
+          if (-not $extractedDir) {
+            Write-Error "Could not determine extracted directory name starting with 'awscli-bundle' or 'awscli-'"
+            exit 1
+          }
+          echo "EXTRACTED_DIR_NAME=$extractedDir" >> $env:GITHUB_ENV
+          Write-Host "Extracted directory name: $extractedDir"
+
+      - name: Install build dependencies
+        # Using msys2do for each pacman command. These commands are not path sensitive.
+        run: |
+          msys2do pacman -S --noconfirm --needed mingw-w64-x86_64-toolchain
+          msys2do pacman -S --noconfirm --needed mingw-w64-x86_64-python3
+          msys2do pacman -S --noconfirm --needed mingw-w64-x86_64-autoconf
+          msys2do pacman -S --noconfirm --needed mingw-w64-x86_64-automake
+          msys2do pacman -S --noconfirm --needed mingw-w64-x86_64-libtool
+
+      - name: Run configure script
+        # Use msys2do with sh -c to change directory and then execute.
+        # env.EXTRACTED_DIR_NAME is available to the default shell (PowerShell)
+        # and thus to the msys2do command line.
+        run: msys2do sh -c "cd \"${{ env.EXTRACTED_DIR_NAME }}\" && ./configure --with-install-type=portable-exe --with-download-deps"
+
+      - name: Run make
+        run: msys2do sh -c "cd \"${{ env.EXTRACTED_DIR_NAME }}\" && make"
+
+      - name: Copy artifacts to GITHUB_WORKSPACE
+        # Using msys2do with sh -c to navigate and copy.
+        # GITHUB_WORKSPACE in msys2do context refers to the root of the workspace (e.g., /d/a/repo/repo).
+        run: |
+          msys2do sh -c "cd \"${{ env.EXTRACTED_DIR_NAME }}\" && cp build/exe/aws/dist/aws.exe \"${GITHUB_WORKSPACE}/aws.exe\""
+          msys2do sh -c "cd \"${{ env.EXTRACTED_DIR_NAME }}\" && cp build/exe/aws/dist/aws_completer.exe \"${GITHUB_WORKSPACE}/aws_completer.exe\""
+          Write-Host "Copied aws.exe and aws_completer.exe to ${GITHUB_WORKSPACE}"
+
+      - name: Upload awscli binaries
+        uses: actions/upload-artifact@v3
+        with:
+          name: awscli-windows
+          path: |
+            ${{ github.workspace }}/aws.exe
+            ${{ github.workspace }}/aws_completer.exe
+          if-no-files-found: error
